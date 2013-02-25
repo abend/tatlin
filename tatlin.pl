@@ -10,8 +10,8 @@ my $extrusion_rate = .05; # extrusion amount per mm
 my $extruder_pos = 0;
 my ($cur_x, $cur_y, $cur_z);
 
-
 header(-20, 0, .13);
+comment("base");
 go(0, 0, .13);
 go(0, -20, .13);
 go(.25, -20, .13);
@@ -23,16 +23,34 @@ go(.25, 20, .13);
 go(0, 20, .13);
 go(0, .25, .13);
 
-$speed = 50; #1620;
-$extrusion_rate = .12; # extrusion amount per mm
-go(0, .25, 10);
+comment("fence");
+$speed = 50;
+$extrusion_rate = .1; # extrusion amount per mm
+go(0, .25, 10, "Left strut");
+dwell(.1);
 pause(5);
-move(10, .25, .13, 1000, "go to bottom");
+
+move(10, .25, .13, 1000, "BR");
 go(0, .25, 10);
-move(10, .25, .13, 1000, "go to bottom again");
+move(10, .25, 10, 1000, "TR");
+move(10, .25, .13, 1000, "BR");
 go(10, .25, 10);
+dwell(.1);
 pause(5);
+$speed = 1500;
 go(0, .25, 10);
+dwell(.5);
+
+move(20, .25, .13, 1000, "BR");
+go(10, .25, 10);
+move(20, .25, 10, 1000, "TR");
+move(20, .25, .13, 1000, "BR");
+go(20, .25, 10);
+dwell(.1);
+pause(5);
+$speed = 1500;
+go(10, .25, 10);
+dwell(.5);
 
 footer();
 
@@ -52,6 +70,12 @@ sub move {
 sub dwell {
   my ($secs) = @_;
   printf $fh "G4 P%d (Dwell %.1fs)\n", $secs * 1000, $secs;
+}
+
+sub comment {
+  print $fh "(";
+  printf $fh @_;
+  print $fh ")\n";
 }
 
 sub pause {
@@ -88,8 +112,8 @@ M73 P0 (enable build progress)
 G21 (set units to mm)
 G90 (set positioning to absolute)
 M108 T0 (set extruder max speed)
-M109 S60 T0 (set HBP temperature)
-M104 S190 T0 (set extruder temperature)
+M109 S70 T0 (set HBP temperature)
+M104 S200 T0 (set extruder temperature)
 
 (**** begin homing ****)
 G162 X Y F2500 (home XY axes maximum)
