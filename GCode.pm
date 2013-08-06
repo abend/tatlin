@@ -18,6 +18,8 @@ sub new {
               move_speed => 2500,
               extrusion_rate => .05, # extrusion amount per mm
               extruder_pos => 0,
+              base_temp => 90,
+              extruder_temp => 210,
               cur_x => undef,
               cur_y => undef,
               cur_z => undef,
@@ -113,8 +115,8 @@ M73 P0 (enable build progress)
 G21 (set units to mm)
 G90 (set positioning to absolute)
 M108 T0 (set extruder max speed)
-M109 S70 T0 (set HBP temperature)
-M104 S200 T0 (set extruder temperature)
+M109 S$self->{base_temp} T0 (set HBP temperature)
+M104 S$self->{extruder_temp} T0 (set extruder temperature)
 
 (**** begin homing ****)
 G162 X Y F2500 (home XY axes maximum)
