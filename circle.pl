@@ -13,18 +13,22 @@ open(my $fh, '>', $file) or die "opening file '$file': $!";
 my $gcode = GCode->new($fh);
 
 my $zbase = .13;
-my $h = 8; # circle height
+my $ring_height = 2; # circle height
 my $r = 20;
 
 $gcode->{speed} = 1500;
 
 my @pts = circle();
 #say Dumper(@pts);
+my $h = $ring_height;
 $gcode->header($pts[0][0], $pts[0][1], $zbase);
 base($gcode, @pts);
 fence($gcode, @pts);
 $zbase = $h;
-$h = $h * 2;
+$h += $ring_height;
+fence($gcode, @pts);
+$zbase = $h;
+$h += $ring_height;
 fence($gcode, @pts);
 
 sub fence {
@@ -90,7 +94,7 @@ $gcode->footer;
 
 sub circle {
   my @p;
-  my $n = 12;
+  my $n = 36;
   my $a = 360 / $n;
   for my $i (0..$n-1) {
     my $angle = $i * $a;
@@ -105,10 +109,10 @@ sub circle {
     my $xmoremore = cos(deg2rad($amoremore));
     my $ymoremore = sin(deg2rad($amoremore));
 
-    push @p, [$x * $r, $y * $r,
-              $xmore * ($r - 5), $ymore * ($r - 5),
-              $xmore * ($r + 5), $ymore * ($r + 5),
-              $xmoremore * $r, $ymoremore * $r];
+    push @p, [$x * $r, $y * $r, # current point
+              $xmore * ($r - 5), $ymore * ($r - 5), # inner base point
+              $xmore * ($r + 5), $ymore * ($r + 5), # outer base point
+              $xmoremore * $r, $ymoremore * $r]; # fwd base point
   }
   #say Dumper(@p);
   @p;
