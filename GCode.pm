@@ -18,7 +18,7 @@ sub new {
               move_speed => 2500,
               extrusion_rate => .05, # extrusion amount per mm
               extruder_pos => 0,
-              base_temp => 90,
+              base_temp => undef,
               extruder_temp => 210,
               cur_x => undef,
               cur_y => undef,
@@ -115,7 +115,13 @@ M73 P0 (enable build progress)
 G21 (set units to mm)
 G90 (set positioning to absolute)
 M108 T0 (set extruder max speed)
-M109 S$self->{base_temp} T0 (set HBP temperature)
+EOM
+
+  if ($self->{base_temp}) {
+    print $fh, "M109 S$self->{base_temp} T0 (set HBP temperature)\n";
+  }
+
+  print $fh <<EOM;
 M104 S$self->{extruder_temp} T0 (set extruder temperature)
 
 (**** begin homing ****)
