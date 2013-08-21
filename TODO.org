@@ -1,0 +1,4 @@
+* todo
+** script that calls gcode.rkt
+** make into an interface
+** add 3d vis that adheres to interface
