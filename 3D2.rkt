@@ -3,58 +3,34 @@
 (require sgl
          sgl/gl-vectors)
 
-;; (provide set-gl-draw-fn
-;;          set-gl-init-fn
-;;          init-textures
-;;          image->gl-vector
-;;          bitmap->gl-vector
-;;          gl-load-texture
-;;          get-texture
-;;          add-key-mapping
-;;          clear-key-mappings
-;;          gl-run)
-
-(define rotation 0.0)
+(define view-rotx 20.0)
+(define view-roty 30.0)
+(define view-rotz 0.0)
 
 (define gl-draw (lambda ()
-                  (set! rotation (+ 2.0 rotation))
+                  (gl-clear-color 1.0 1.0 1.0 0.0)
+                  (gl-clear 'color-buffer-bit 'depth-buffer-bit)
 
-	   (gl-clear-color 0.0 0.0 0.0 0.0)
-	   (gl-clear 'color-buffer-bit 'depth-buffer-bit)
+                  (gl-push-matrix)
+                  (gl-rotate view-rotx 1.0 0.0 0.0)
+                  (gl-rotate view-roty 0.0 1.0 0.0)
+                  (gl-rotate view-rotz 0.0 0.0 1.0)
 
-	   (gl-push-matrix)
-	   ;; (gl-rotate view-rotx 1.0 0.0 0.0)
-	   ;; (gl-rotate view-roty 0.0 1.0 0.0)
-	   ;; (gl-rotate view-rotz 0.0 0.0 1.0)
+                  ;; (gl-begin 'triangles)
+                  ;; (gl-vertex 1 2 3)
+                  ;; (gl-vertex-v (gl-float-vector 1 2 3 4))
+                  ;; (gl-end)
 
-	   ;; (gl-push-matrix)
-	   ;; (gl-translate -3.0 -2.0 0.0)
-	   ;; (gl-rotate rotation 0.0 0.0 1.0)
-	   ;; (gl-call-list gear1)
-	   ;; (gl-pop-matrix)
+                  (gl-begin 'polygon)
+                  (gl-color 1 0 0) (gl-vertex .5 -.5 -.5)
+                  (gl-color 0 1 0) (gl-vertex .5  .5 -.5)
+                  (gl-color 0 0 1) (gl-vertex -.5 .5 -.5)
+                  (gl-color 1 0 1) (gl-vertex -.5 -.5 -.5)
+                  (gl-end)
 
-	   ;; (gl-push-matrix)
-	   ;; (gl-translate 3.1 -2.0 0.0)
-	   ;; (gl-rotate (- (* -2.0 rotation) 9.0) 0.0 0.0 1.0)
-	   ;; (gl-call-list gear2)
-	   ;; (gl-pop-matrix)
+                  (gl-pop-matrix)
 
-	   ;; (gl-push-matrix)
-	   ;; (gl-translate -3.1 4.2 0.0)
-	   ;; (gl-rotate (- (* -2.0 rotation) 25.0) 0.0 0.0 1.0)
-	   ;; (gl-call-list gear3)
-	   ;; (gl-pop-matrix)
-
-           (gl-begin 'triangles)
-           (gl-vertex 1 2 3)
-           (gl-vertex-v (gl-float-vector 1 2 3 4))
-           (gl-end)
-
-	   (gl-pop-matrix)
-
-	   ;;(swap-gl-buffers)
-	   (gl-flush)
-))
+                  (gl-flush)))
 
 (define gl-init 
   (lambda ()
@@ -65,13 +41,6 @@
     (gl-depth-func 'lequal)
     (gl-hint 'perspective-correction-hint 'nicest)))
 
-;; (define (set-gl-draw-fn fn)
-;;   (set! gl-draw fn))
-
-;; (define (set-gl-init-fn fn)
-;;   (set! gl-init fn))
-
-;; A function that recorrects for a new aspect ratio when the window is resized
 (define (gl-resize width height)
   (gl-viewport 0 0 width height)
   
@@ -82,26 +51,37 @@
   (gl-matrix-mode 'modelview)
   (gl-load-identity))
 
-;; (define (recursive-handle-key list code)
-;;   (cond
-;;    ((empty? list) void)
-;;    ((equal? (caar list) code) ((car (cdr (car list)))))
-;;    (else (recursive-handle-key (rest list) code))))
 
-;; (define *key-mappings* '())
+;;; keyboard events
 
-;; (define (add-key-mapping key fn)
-;;   (set! *key-mappings* (cons (list key fn) *key-mappings*)))
+(define (recursive-handle-key list code)
+  (cond
+   ((empty? list) void)
+   ((equal? (caar list) code) ((car (cdr (car list)))))
+   (else (recursive-handle-key (rest list) code))))
 
-;; (define (clear-key-mappings)
-;;   (set! *key-mappings* '()))
+(define *key-mappings* '())
 
-;; (define (gl-handlekey key)
-;;   (recursive-handle-key *key-mappings* (send key get-key-code)))
+(define (add-key-mapping key fn)
+  (set! *key-mappings* (cons (list key fn) *key-mappings*)))
+
+(define (clear-key-mappings)
+  (set! *key-mappings* '()))
+
+(define (gl-handlekey key)
+  (recursive-handle-key *key-mappings* (send key get-key-code)))
+
+(add-key-mapping 'escape (lambda () (display "quit!") (newline) (send gl-frame show #f)))
+
+
+;;; the gl canvas
 
 (define glcanvas%
   (class canvas%
     (inherit refresh with-gl-context swap-gl-buffers)
+
+    (field [last-mouse-x 0] 
+           [last-mouse-y 0])
 
     (define init? #f)
     (define/override (on-paint)
@@ -120,73 +100,39 @@
          (gl-resize w h)))
       (refresh))
     
-    ;; (define/override (on-char key)
-    ;;   (gl-handlekey key)
-    ;;   (refresh))
+    (define/override (on-char key)
+      (gl-handlekey key)
+      (refresh))
+
+    (define/override (on-event event)
+      (when (send event button-down?)
+        (set! last-mouse-x (send event get-x))
+        (set! last-mouse-y (send event get-y)))
+      (when (send event dragging?)
+        (let* ((x (send event get-x))
+               (y (send event get-y))
+               (xdiff (- x last-mouse-x))
+               (ydiff (- y last-mouse-y)))
+          (set! view-rotx (- view-rotx ydiff))
+          (set! view-roty (- view-roty xdiff))
+          (set! last-mouse-x x)
+          (set! last-mouse-y y)))
+      ;; (refresh)
+      )
+
     (super-new (style '(gl no-autoclear)))))
 
+(define gl-frame #f)
+
 (define (gl-run)
-  (let* ((frame (new frame% (label "OpenGL Window") 
-                     (width 640) 
-                     (height 480)))
-         (glcanvas (new glcanvas% (parent frame))))
+  (set! gl-frame (new frame% (label "OpenGL Window") 
+                      (width 640) 
+                      (height 480)))
+  (let ((glcanvas (new glcanvas% (parent gl-frame))))
     (unless (send (send (send glcanvas get-dc) get-gl-context) ok?)
       (display "Error: OpenGL context failed to initialize")
       (newline)
       (exit))
-    (send frame show #t)))
+    (send gl-frame show #t)))
 
-;; (define *textures* '())
-
-;; (define init-textures
-;;   (lambda (count)
-;;     (set! *textures* (glGenTextures count))))
-
-;; (define (bitmap->gl-vector bmp)
-;;   (let* (
-;;          (dc (instantiate bitmap-dc% (bmp)))
-;;          (pixels (* (send bmp get-width) (send bmp get-height)))
-;;          (vec (make-gl-ubyte-vector (* pixels 3)))
-;;          (data (make-bytes (* pixels 4)))
-;;          (i 0)
-;;          )
-;;     (send dc get-argb-pixels 0 0 (send bmp get-width) (send bmp get-height) data)
-;;     (letrec
-;;         ([loop
-;;           (lambda ()
-;;             (when (< i pixels)
-;;               (begin
-;;                 (gl-vector-set! vec (* i  3) 
-;;                                 (bytes-ref data (+ (* i 4) 1)))
-;;                 (gl-vector-set! vec (+ (* i 3) 1) 
-;;                                 (bytes-ref data (+ (* i 4) 2)))
-;;                 (gl-vector-set! vec (+ (* i 3) 2) 
-;;                                 (bytes-ref data (+ (* i 4) 3)))
-;;                 (set! i (+ i 1))
-;;                 (loop))))])
-;;       (loop))
-;;     (send dc set-bitmap #f)
-;;     (list (send bmp get-width) (send bmp get-height) vec)))
-
-;; (define (image->gl-vector file) (bitmap->gl-vector (make-object bitmap% file 'unknown #f)))
-
-;; (define gl-load-texture
-;;   (lambda (image-vector width height min-filter mag-filter ix)
-;;     (glBindTexture GL_TEXTURE_2D (gl-vector-ref *textures* ix))
-;;     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER min-filter)
-;;     (glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER mag-filter)
-;;     (let* ((new-width 128)
-;;            (new-height 128)
-;;            (new-img-vec (make-gl-ubyte-vector (* new-width new-height 3))))
-;;       (gluScaleImage GL_RGB
-;;                      width height GL_UNSIGNED_BYTE image-vector
-;;                      new-width new-height GL_UNSIGNED_BYTE new-img-vec)
-;;       (if (or (= min-filter GL_LINEAR_MIPMAP_NEAREST)
-;;               (= mag-filter GL_LINEAR_MIPMAP_NEAREST))
-;;           (gluBuild2DMipmaps GL_TEXTURE_2D 3 new-width new-height GL_RGB GL_UNSIGNED_BYTE new-img-vec)
-;;           (glTexImage2D GL_TEXTURE_2D 0 3 new-width new-height 0 GL_RGB GL_UNSIGNED_BYTE new-img-vec))))
-;;   )
-
-;; (define get-texture
-;;   (lambda (ix)
-;;     (gl-vector-ref *textures* ix)))
+(gl-run)
