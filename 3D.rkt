@@ -3,29 +3,38 @@
 (require sgl
          sgl/gl-vectors)
 
-(define view-rotx 20.0)
-(define view-roty 30.0)
-(define view-rotz 0.0)
+(define view-dist -50.0)
+(define view-rotx 0.0)
+(define view-roty 0.0)
+
+(define build-plate-w 230) ;; in mm
+(define build-plate-d 150) ;; in mm
 
 (define gl-draw (lambda ()
                   (gl-clear-color 1.0 1.0 1.0 0.0)
                   (gl-clear 'color-buffer-bit 'depth-buffer-bit)
 
                   (gl-push-matrix)
+                  (gl-look-at 0 0 -50 0 0 0 0 1 0)
                   (gl-rotate view-rotx 1.0 0.0 0.0)
                   (gl-rotate view-roty 0.0 1.0 0.0)
-                  (gl-rotate view-rotz 0.0 0.0 1.0)
 
-                  ;; (gl-begin 'triangles)
-                  ;; (gl-vertex 1 2 3)
-                  ;; (gl-vertex-v (gl-float-vector 1 2 3 4))
-                  ;; (gl-end)
+                  ;; build plate
+                  (let ((hw  (/ build-plate-w 2))
+                        (hd (/ build-plate-d 2))
+                        (y -2))
+                    (gl-begin 'polygon)
+                    (gl-color 1 0 0 .5) (gl-vertex (- hw) y (- hd))
+                    (gl-color 1 0 1 .5) (gl-vertex (- hw) y  hd)
+                    (gl-color 0 0 1 .5) (gl-vertex  hw y  hd)
+                    (gl-color 0 1 0 .5) (gl-vertex  hw y (- hd))
+                    (gl-end))
 
                   (gl-begin 'polygon)
-                  (gl-color 1 0 0) (gl-vertex .5 -.5 -.5)
-                  (gl-color 0 1 0) (gl-vertex .5  .5 -.5)
-                  (gl-color 0 0 1) (gl-vertex -.5 .5 -.5)
-                  (gl-color 1 0 1) (gl-vertex -.5 -.5 -.5)
+                  (gl-color 1 0 0) (gl-vertex  5 -5 0)
+                  (gl-color 0 1 0) (gl-vertex  5  5 0)
+                  (gl-color 0 0 1) (gl-vertex -5  5 0)
+                  (gl-color 1 0 1) (gl-vertex -5 -5 0)
                   (gl-end)
 
                   (gl-pop-matrix)
@@ -46,7 +55,7 @@
   
   (gl-matrix-mode 'projection)
   (gl-load-identity)
-  (gl-perspective 45 (/ width height) 0.1 100)
+  (gl-perspective 45 (/ width height) 0.1 1000)
   
   (gl-matrix-mode 'modelview)
   (gl-load-identity))
@@ -71,7 +80,14 @@
 (define (gl-handlekey key)
   (recursive-handle-key *key-mappings* (send key get-key-code)))
 
-(add-key-mapping 'escape (lambda () (display "quit!") (newline) (send gl-frame show #f)))
+(add-key-mapping 'escape
+                 (lambda () (send gl-frame show #f)))
+(add-key-mapping 'wheel-down
+                 (lambda () 
+                   (set! view-dist (max 0 (- view-dist (max .25 (* view-dist .1)))))))
+(add-key-mapping 'wheel-up
+                 (lambda () 
+                   (set! view-dist (+ view-dist (max .25 (* view-dist .1))))))
 
 
 ;;; the gl canvas
@@ -84,6 +100,7 @@
            [last-mouse-y 0])
 
     (define init? #f)
+
     (define/override (on-paint)
       (with-gl-context 
        (lambda ()
@@ -113,12 +130,10 @@
                (y (send event get-y))
                (xdiff (- x last-mouse-x))
                (ydiff (- y last-mouse-y)))
-          (set! view-rotx (- view-rotx ydiff))
-          (set! view-roty (- view-roty xdiff))
+          (set! view-rotx (max -45 (min 45 (- view-rotx ydiff))))
+          (set! view-roty (+ view-roty xdiff))
           (set! last-mouse-x x)
-          (set! last-mouse-y y)))
-      ;; (refresh)
-      )
+          (set! last-mouse-y y))))
 
     (super-new (style '(gl no-autoclear)))))
 
