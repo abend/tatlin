@@ -3,9 +3,14 @@
 (require sgl
          sgl/gl-vectors)
 
-(define view-dist -50.0)
-(define view-rotx 0.0)
-(define view-roty 0.0)
+(define pen-color '(.1 1 .1))
+
+(define view-rotx -20.0)
+(define view-roty -30.0)
+
+(define view-dist 150.0)
+(define min-view-dist 1)
+(define max-view-dist 850)
 
 (define build-plate-w 230) ;; in mm
 (define build-plate-d 150) ;; in mm
@@ -15,31 +20,69 @@
                   (gl-clear 'color-buffer-bit 'depth-buffer-bit)
 
                   (gl-push-matrix)
-                  (gl-look-at 0 0 -50 0 0 0 0 1 0)
+                  (gl-look-at 0 0 (- view-dist) 0 0 0 0 1 0)
                   (gl-rotate view-rotx 1.0 0.0 0.0)
                   (gl-rotate view-roty 0.0 1.0 0.0)
 
-                  ;; build plate
-                  (let ((hw  (/ build-plate-w 2))
-                        (hd (/ build-plate-d 2))
-                        (y -2))
-                    (gl-begin 'polygon)
-                    (gl-color 1 0 0 .5) (gl-vertex (- hw) y (- hd))
-                    (gl-color 1 0 1 .5) (gl-vertex (- hw) y  hd)
-                    (gl-color 0 0 1 .5) (gl-vertex  hw y  hd)
-                    (gl-color 0 1 0 .5) (gl-vertex  hw y (- hd))
-                    (gl-end))
+                  (draw-model)
 
-                  (gl-begin 'polygon)
-                  (gl-color 1 0 0) (gl-vertex  5 -5 0)
-                  (gl-color 0 1 0) (gl-vertex  5  5 0)
-                  (gl-color 0 0 1) (gl-vertex -5  5 0)
-                  (gl-color 1 0 1) (gl-vertex -5 -5 0)
-                  (gl-end)
+                  (draw-build-plate)
 
                   (gl-pop-matrix)
 
                   (gl-flush)))
+
+(define (draw-model)
+  (gl-line-width 3.5)
+  (gl-begin 'line-strip)
+  (apply gl-color pen-color) 
+  (gl-vertex 0 0 0)
+  (gl-vertex 1 1 0)
+  (gl-vertex 1 2 0)
+  (gl-vertex 2 3 0)
+  (gl-vertex -1 2 0)
+  (gl-end))
+
+(define (draw-build-plate)
+  (let* ((hw  (/ build-plate-w 2))
+         (hd (/ build-plate-d 2))
+         (y 0)
+         (y-over (+ y .1)))
+    ;; center dot
+    (gl-begin 'polygon)
+    (gl-color 0 0 0)
+    (gl-vertex  1 y-over 1)
+    (gl-vertex  1 y-over -1)
+    (gl-vertex  -1 y-over -1)
+    (gl-vertex  -1 y-over 1)
+    (gl-end)
+
+    ;; alignment tri
+    (gl-begin 'polygon)
+    (gl-color 0 0 0)
+    (gl-vertex  5 y-over (- hd))
+    (gl-vertex  -5 y-over (- hd))
+    (gl-vertex  0 y-over (- 0 hd 5))
+    (gl-end)
+
+    ;; plate
+    (gl-begin 'polygon)
+    (gl-color 0 0 0 .2)
+    (gl-vertex (- hw) y (- hd))
+    (gl-vertex (- hw) y  hd)
+    (gl-vertex  hw y  hd)
+    (gl-vertex  hw y (- hd))
+    (gl-end)
+
+    ;; border
+    (gl-line-width 1.5)
+    (gl-begin 'line-loop)
+    (gl-color 0 0 0) 
+    (gl-vertex (- hw) y-over (- hd))
+    (gl-vertex (- hw) y-over  hd)
+    (gl-vertex hw y-over  hd)
+    (gl-vertex hw y-over (- hd))
+    (gl-end)))
 
 (define gl-init 
   (lambda ()
@@ -48,6 +91,20 @@
     (gl-clear-depth 1)
     (gl-enable 'depth-test)
     (gl-depth-func 'lequal)
+    (gl-enable 'blend)
+    (gl-blend-func 'src-alpha 'one-minus-src-alpha)
+
+    (gl-enable 'line-smooth)
+    (gl-enable 'polygon-smooth)
+    (gl-hint 'line-smooth-hint 'nicest)
+    (gl-hint 'polygon-smooth-hint 'nicest)
+
+    ;; (gl-enable 'fog)
+    ;; (gl-fog 'fog-mode 'exp2)
+;;     (gl-fogfv 'fog-color fog-color)
+;; glFogf (GL_FOG_DENSITY, density);
+;; glHint (GL_FOG_HINT, GL_NICEST);
+
     (gl-hint 'perspective-correction-hint 'nicest)))
 
 (define (gl-resize width height)
@@ -84,10 +141,11 @@
                  (lambda () (send gl-frame show #f)))
 (add-key-mapping 'wheel-down
                  (lambda () 
-                   (set! view-dist (max 0 (- view-dist (max .25 (* view-dist .1)))))))
+                   (set! view-dist (max min-view-dist (- view-dist (max .25 (* view-dist .1)))))))
 (add-key-mapping 'wheel-up
                  (lambda () 
-                   (set! view-dist (+ view-dist (max .25 (* view-dist .1))))))
+                   (set! view-dist (min max-view-dist (+ view-dist (max .25 (* view-dist .1)))))
+                   (displayln view-dist)))
 
 
 ;;; the gl canvas
